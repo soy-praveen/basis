@@ -14,6 +14,7 @@ Polymarket's 5-minute and 15-minute BTC/ETH Up/Down markets close on exactly the
 
 - **Terminal**: four cards (BTC 5m, ETH 5m, BTC 15m, ETH 15m). Each shows DreamDEX's on-chain Up book (mid, best bid/ask, size, reference price) next to Polymarket's public CLOB for the same window, the basis in cents, and a sparkline of both mids over the window. Sampled every four seconds directly from the Shannon RPC and Polymarket's API, no backend.
 - **Edge and take**: when DreamDEX's ask sits below Polymarket's bid, or its bid above Polymarket's ask, the card names the cheaper side and offers a one-click immediate-or-cancel `placeBinaryOrder` on the DreamDEX pool at zero fees.
+- **Scoreboard**: the last price each venue showed before a window closed, scored against that venue's own settlement. Brier score and hit rate per venue, plus every window where the two oracles disagreed on the outcome.
 - **Quoting bot**: `bot/quote.mjs` mints a set for inventory, then rests post-only bids and asks on DreamDEX around the Polymarket mid, re-centres every 20 seconds, pulls quotes before close, and logs fills against a paper hedge. It is the shortest path from "dead DreamDEX window" to "priced like the biggest market in the world".
 
 Observed on 11 September 2026: on the ETH 15-minute window closing at 06:45 UTC, Polymarket had Up at 46.5 cents while DreamDEX's book sat around 20 cents. Gaps of 4 to 10 cents were common across the day.

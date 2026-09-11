@@ -18,7 +18,7 @@ Four cards, one per series: BTC 5m, ETH 5m, BTC 15m, ETH 15m. Each card shows th
 - **Basis**: DreamDEX Up mid minus Polymarket Up mid, in cents, with a two-line sparkline of both mids for the life of the window.
 - **Edge**: when DreamDEX's ask is below Polymarket's bid (Up is cheaper on DreamDEX) or DreamDEX's bid is above Polymarket's ask (Down is cheaper on DreamDEX), the card says so and offers a one-click immediate-or-cancel `placeBinaryOrder` on the DreamDEX pool at the shown limit. Anything the book cannot fill is cancelled on chain.
 
-Below the cards: a rolling log of every sample.
+Below the cards: a **scoreboard**. When a window rolls over, the last price each venue showed before the close is kept; once each venue settles on its own oracle, that price is scored against the outcome (Brier score and hit rate per venue), and windows where the two oracles settled on opposite sides are called out. Then a rolling log of every sample.
 
 ## Why the gap exists
 
