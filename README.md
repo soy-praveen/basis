@@ -6,7 +6,8 @@ DreamDEX on Somnia and Polymarket on Polygon both run 5-minute and 15-minute BTC
 
 Built for the Somnia x DreamDEX Event Contracts Hackathon. DreamDEX side runs on Somnia Shannon testnet. Polymarket side is public read-only data.
 
-- Live app: _link in the submission_
+- Live app: https://soy-praveen.github.io/basis/
+- Demo video: https://youtu.be/nHBazUlzxJY
 - Repo layout: `web/` (Vite + React + viem terminal), `bot/quote.mjs` (quoting bot)
 
 ## What you see
