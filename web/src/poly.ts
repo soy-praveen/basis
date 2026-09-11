@@ -75,3 +75,22 @@ export const depth = (b: Book | null, levels = 3) => {
   if (!b) return { bid: 0, ask: 0 };
   return { bid: b.bids.slice(0, levels).reduce((a, l) => a + l.size, 0), ask: b.asks.slice(0, levels).reduce((a, l) => a + l.size, 0) };
 };
+
+/** Settled outcome of a Polymarket window: 1 if Up won, 0 if Down, null while open. */
+export async function fetchPolyOutcome(slug: string): Promise<number | null> {
+  try {
+    const r = await fetch(`${GAMMA}/events?slug=${slug}`);
+    const d = await r.json();
+    const m = d?.[0]?.markets?.[0];
+    if (!m) return null;
+    const prices: string[] = JSON.parse(m.outcomePrices || "[]");
+    const up = Number(prices[0]), down = Number(prices[1]);
+    const closed = Boolean(m.closed) || m.umaResolutionStatus === "resolved";
+    if (!closed && !(up === 1 || down === 1)) return null;
+    if (up >= 0.99 && down <= 0.01) return 1;
+    if (down >= 0.99 && up <= 0.01) return 0;
+    return null;
+  } catch {
+    return null;
+  }
+}

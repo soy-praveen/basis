@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchDreamWindows, fetchDreamBook, dreamMid, takeOnDream, connectWallet, silentWallet, txUrl, addrUrl, type DreamWindow, type DreamBook, type Wallet } from "./dream";
-import { fetchPolyWindow, fetchBook, bookMid, depth, polyUrl, type PolyWindow, type Book } from "./poly";
+import { fetchPolyWindow, fetchBook, bookMid, depth, polyUrl, fetchPolyOutcome, type PolyWindow, type Book } from "./poly";
+import { pub, marketAbi } from "./dream";
 
 type Series = { asset: "BTC" | "ETH"; intervalSec: number };
 const SERIES: Series[] = [
@@ -27,6 +28,32 @@ type Row = {
   samples: Sample[];
 };
 
+type Scored = {
+  key: string;
+  series: string;
+  start: number;
+  end: number;
+  dreamLast: number | null;
+  polyLast: number | null;
+  dreamMarket: string | null;
+  polySlug: string | null;
+  dreamOutcome: number | null; // 1 up, 0 down
+  polyOutcome: number | null;
+};
+const HKEY = "basis.history.v1";
+const loadHistory = (): Scored[] => {
+  try {
+    return JSON.parse(localStorage.getItem(HKEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+const saveHistory = (h: Scored[]) => {
+  try {
+    localStorage.setItem(HKEY, JSON.stringify(h.slice(-200)));
+  } catch {}
+};
+
 export default function App() {
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
@@ -35,6 +62,7 @@ export default function App() {
   const [busy, setBusy] = useState<string | null>(null);
   const [size, setSize] = useState("5");
   const dreamAll = useRef<DreamWindow[]>([]);
+  const [history, setHistory] = useState<Scored[]>(() => loadHistory());
   const log = useRef<{ t: number; series: string; dream: number | null; poly: number | null }[]>([]);
 
   const say = useCallback((msg: string, err = false) => {
@@ -73,6 +101,15 @@ export default function App() {
           const polyBook = poly ? await fetchBook(poly.upToken) : null;
           const sample: Sample = { t, dream: dreamMid(dreamBook), poly: bookMid(polyBook) };
           const samples = prev && prev.start === start ? [...prev.samples, sample].slice(-120) : [sample];
+          if (prev && prev.start !== start) {
+            // window rolled over: keep the last quotes seen before the close for scoring
+            const lastD = [...prev.samples].reverse().find((x) => x.dream !== null)?.dream ?? null;
+            const lastP = [...prev.samples].reverse().find((x) => x.poly !== null)?.poly ?? null;
+            if (lastD !== null || lastP !== null) {
+              const entry: Scored = { key: `${k}-${prev.start}`, series: `${s.asset} ${s.intervalSec / 60}m`, start: prev.start, end: prev.end, dreamLast: lastD, polyLast: lastP, dreamMarket: prev.dream?.market || null, polySlug: prev.poly?.slug || null, dreamOutcome: null, polyOutcome: null };
+              setHistory((h) => (h.some((x) => x.key === entry.key) ? h : [...h, entry]));
+            }
+          }
           if (sample.dream !== null || sample.poly !== null) log.current.push({ t, series: `${s.asset} ${s.intervalSec / 60}m`, dream: sample.dream, poly: sample.poly });
           next[k] = { series: s, start, end, dream, dreamBook, poly, polyBook, samples };
         })
@@ -94,6 +131,46 @@ export default function App() {
   }, []);
   const latest = useRef<Record<string, Row>>({});
   latest.current = rows;
+
+  // score archived windows once each venue has settled on its own oracle
+  const pendingCount = history.filter((h) => (h.dreamOutcome === null && h.dreamMarket) || (h.polyOutcome === null && h.polySlug)).length;
+  useEffect(() => {
+    saveHistory(history);
+  }, [history]);
+  useEffect(() => {
+    if (!pendingCount) return;
+    let cancelled = false;
+    const run = async () => {
+      const pending = loadHistory().filter((h) => (h.dreamOutcome === null && h.dreamMarket) || (h.polyOutcome === null && h.polySlug)).slice(0, 12);
+      const updates = new Map<string, Partial<Scored>>();
+      await Promise.all(
+        pending.map(async (h) => {
+          const u: Partial<Scored> = {};
+          if (h.dreamOutcome === null && h.dreamMarket) {
+            try {
+              const [resolved, pn] = await Promise.all([
+                pub.readContract({ address: h.dreamMarket as `0x${string}`, abi: marketAbi, functionName: "isResolved" }),
+                pub.readContract({ address: h.dreamMarket as `0x${string}`, abi: marketAbi, functionName: "payoutNumerators" }),
+              ]);
+              if (resolved && pn.length >= 2) u.dreamOutcome = pn[0] > pn[1] ? 1 : 0;
+            } catch {}
+          }
+          if (h.polyOutcome === null && h.polySlug) {
+            const o = await fetchPolyOutcome(h.polySlug);
+            if (o !== null) u.polyOutcome = o;
+          }
+          if (Object.keys(u).length) updates.set(h.key, u);
+        })
+      );
+      if (!cancelled && updates.size) setHistory((hs) => hs.map((h) => (updates.has(h.key) ? { ...h, ...updates.get(h.key) } : h)));
+    };
+    run();
+    const t = setInterval(run, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [pendingCount]);
 
   const connect = async () => {
     try {
@@ -198,6 +275,8 @@ export default function App() {
           largest prediction market in the world.
         </div>
       </div>
+
+      <Scoreboard history={history} />
 
       <BasisLog log={log.current} now={now} />
 
@@ -395,6 +474,114 @@ function BasisLog({ log, now }: { log: { t: number; series: string; dream: numbe
             <tr>
               <td colSpan={5} style={{ color: "var(--muted)" }}>
                 Sampling… ({now % 2 === 0 ? "·" : "··"})
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+function Scoreboard({ history }: { history: Scored[] }) {
+  const scored = history.filter((h) => h.dreamOutcome !== null || h.polyOutcome !== null);
+  const brier = (p: number | null, o: number | null) => (p === null || o === null ? null : (p - o) ** 2);
+  const stat = (venue: "dream" | "poly") => {
+    const rows = scored
+      .map((h) => ({ p: venue === "dream" ? h.dreamLast : h.polyLast, o: venue === "dream" ? h.dreamOutcome : h.polyOutcome }))
+      .filter((x) => x.p !== null && x.o !== null) as { p: number; o: number }[];
+    const n = rows.length;
+    const hit = rows.filter((x) => (x.p >= 0.5 ? 1 : 0) === x.o).length;
+    const b = n ? rows.reduce((a, x) => a + (x.p - x.o) ** 2, 0) / n : null;
+    return { n, hit, b };
+  };
+  const d = stat("dream"), p = stat("poly");
+  const disagree = scored.filter((h) => h.dreamOutcome !== null && h.polyOutcome !== null && h.dreamOutcome !== h.polyOutcome);
+  const last = [...scored].reverse().slice(0, 10);
+  return (
+    <div className="panel">
+      <h3>Who called it</h3>
+      <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: 13 }}>
+        When a window rolls over, the last price each venue showed before the close is kept. Once each venue settles on its own oracle, that price is scored against the outcome.
+        Lower Brier is better; 0.25 is a coin flip. Scores accumulate in this browser while the page is open.
+      </p>
+      <div className="grid" style={{ marginTop: 0 }}>
+        <div className="venue">
+          <div className="vn">
+            <span>DreamDEX</span>
+            <span>{d.n} windows</span>
+          </div>
+          <div className="mid">
+            {d.b === null ? "—" : d.b.toFixed(3)}
+            <small>Brier</small>
+          </div>
+          <div className="bo">
+            <span>
+              called the side <b>{d.n ? `${d.hit}/${d.n}` : "—"}</b>
+            </span>
+            <span>
+              <b>{d.n ? `${Math.round((100 * d.hit) / d.n)}%` : "—"}</b>
+            </span>
+          </div>
+        </div>
+        <div className="venue">
+          <div className="vn">
+            <span>Polymarket</span>
+            <span>{p.n} windows</span>
+          </div>
+          <div className="mid">
+            {p.b === null ? "—" : p.b.toFixed(3)}
+            <small>Brier</small>
+          </div>
+          <div className="bo">
+            <span>
+              called the side <b>{p.n ? `${p.hit}/${p.n}` : "—"}</b>
+            </span>
+            <span>
+              <b>{p.n ? `${Math.round((100 * p.hit) / p.n)}%` : "—"}</b>
+            </span>
+          </div>
+        </div>
+      </div>
+      {disagree.length > 0 && (
+        <div className="edge down" style={{ marginTop: 12 }}>
+          <span>
+            The two oracles settled <b>{disagree.length}</b> window{disagree.length > 1 ? "s" : ""} on opposite sides: {disagree.map((h) => `${h.series} ${hhmm(h.end)}`).join(", ")}. Different
+            reference price, different answer.
+          </span>
+        </div>
+      )}
+      <table className="tbl" style={{ marginTop: 12 }}>
+        <thead>
+          <tr>
+            <th>window</th>
+            <th className="r">DreamDEX last</th>
+            <th className="r">DreamDEX settled</th>
+            <th className="r">Polymarket last</th>
+            <th className="r">Polymarket settled</th>
+            <th className="r">Brier D / P</th>
+          </tr>
+        </thead>
+        <tbody>
+          {last.map((h) => (
+            <tr key={h.key}>
+              <td>
+                {h.series} · {hhmm(h.start)}→{hhmm(h.end)}
+              </td>
+              <td className="r">{cents(h.dreamLast)}</td>
+              <td className="r">{h.dreamOutcome === null ? "…" : h.dreamOutcome ? "UP" : "DOWN"}</td>
+              <td className="r">{cents(h.polyLast)}</td>
+              <td className="r">{h.polyOutcome === null ? "…" : h.polyOutcome ? "UP" : "DOWN"}</td>
+              <td className="r">
+                {brier(h.dreamLast, h.dreamOutcome)?.toFixed(3) ?? "—"} / {brier(h.polyLast, h.polyOutcome)?.toFixed(3) ?? "—"}
+              </td>
+            </tr>
+          ))}
+          {last.length === 0 && (
+            <tr>
+              <td colSpan={6} style={{ color: "var(--muted)" }}>
+                No settled windows yet. Leave the page open across a window close.
               </td>
             </tr>
           )}
