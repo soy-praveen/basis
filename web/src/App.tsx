@@ -80,7 +80,7 @@ export default function App() {
   useEffect(() => {
     const go = () => fetchDreamWindows(4).then((w) => (dreamAll.current = w)).catch(() => {});
     go();
-    const t = setInterval(go, 20000);
+    const t = setInterval(go, 8000);
     return () => clearInterval(t);
   }, []);
 
