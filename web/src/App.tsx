@@ -245,7 +245,7 @@ function Card({ r, s, now, busy, take, wallet }: { r: Row | undefined; s: Series
               </a>
             )}
           </div>
-          <div className="mid">
+          <div className="mid pop" key={`d${dm ?? "x"}`}>
             {cents(dm)}
             <small>Up mid</small>
           </div>
@@ -268,7 +268,7 @@ function Card({ r, s, now, busy, take, wallet }: { r: Row | undefined; s: Series
               </a>
             )}
           </div>
-          <div className="mid">
+          <div className="mid pop" key={`p${pm ?? "x"}`}>
             {cents(pm)}
             <small>Up mid</small>
           </div>
@@ -288,7 +288,7 @@ function Card({ r, s, now, busy, take, wallet }: { r: Row | undefined; s: Series
           <div className="bl">
             basis · <b>DreamDEX − Polymarket</b> on the Up side
           </div>
-          <div className={`b ${basis === null ? "" : basis >= 0 ? "pos" : "neg"}`}>{basis === null ? "—" : `${basis >= 0 ? "+" : ""}${(basis * 100).toFixed(1)}¢`}</div>
+          <div key={`b${basis ?? "x"}`} className={`b pop ${basis === null ? "" : basis >= 0 ? "pos" : "neg"}`}>{basis === null ? "—" : `${basis >= 0 ? "+" : ""}${(basis * 100).toFixed(1)}¢`}</div>
         </div>
         <div className="bl" style={{ textAlign: "right" }}>
           {basis === null ? "waiting for both books" : Math.abs(basis) < 0.02 ? "venues agree" : basis > 0 ? "DreamDEX is more bullish" : "DreamDEX is more bearish"}

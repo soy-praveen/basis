@@ -18,14 +18,14 @@
   --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; }
+html, body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 button { font-family: inherit; cursor: pointer; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 .wrap { max-width: 1240px; margin: 0 auto; padding: 0 22px 60px; }
 .top { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; gap: 12px; flex-wrap: wrap; }
-.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
 .brand .name { font-weight: 700; font-size: 22px; letter-spacing: -0.02em; }
 .brand .name i { font-style: normal; color: var(--accent); }
 .brand .sub { color: var(--muted); font-size: 13px; }
@@ -89,3 +89,36 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .panel h3 { margin: 0 0 8px; font-size: 15px; }
 @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } .notes { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 560px) { .venues { grid-template-columns: minmax(0, 1fr); } .venue .mid { font-size: 26px; } }
+
+/* motion */
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes pop { 0% { transform: scale(0.96); opacity: 0.6; } 100% { transform: none; opacity: 1; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.hero, .legend, .card, .note, .panel, .foot { animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.card:nth-child(2) { animation-delay: 80ms; }
+.card:nth-child(3) { animation-delay: 160ms; }
+.card:nth-child(4) { animation-delay: 240ms; }
+.note:nth-child(2) { animation-delay: 80ms; }
+.note:nth-child(3) { animation-delay: 160ms; }
+.card { transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease; }
+.card:hover { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); transform: translateY(-2px); border-color: var(--line2); }
+.venue { transition: border-color 0.2s ease, background 0.2s ease; }
+.venue:hover { border-color: var(--line2); }
+.venue .mid { display: inline-block; }
+.venue .mid.pop { animation: pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.basis { transition: background 0.4s ease; }
+.basis .b { display: inline-block; transition: color 0.3s ease; }
+.basis .b.pop { animation: pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.edge { animation: fadein 0.35s ease both; transition: background 0.3s ease, border-color 0.3s ease; }
+.btn { transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease; }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+.btn.primary:hover:not(:disabled) { box-shadow: 0 6px 18px rgba(79, 70, 229, 0.28); background: #4338ca; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chip { transition: border-color 0.2s ease; }
+.tbl tbody tr { animation: fadein 0.3s ease both; }
+.tbl td { transition: background 0.15s ease; }
+.tbl tbody tr:hover td { background: #f8f9fc; }
+.toast { animation: rise 0.25s ease both; }
+input { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
