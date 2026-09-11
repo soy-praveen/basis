@@ -1,0 +1,5 @@
+node_modules/
+.env
+*.log
+web/dist/
+indexer/state/

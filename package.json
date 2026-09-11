@@ -1,0 +1,15 @@
+{
+  "name": "basis",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-venue basis terminal and quoting bot: DreamDEX Event Contracts vs Polymarket, same window, same clock.",
+  "scripts": {
+    "quote": "node bot/quote.mjs",
+    "watch": "node bot/watch.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.0"
+  }
+}
