@@ -156,6 +156,9 @@ async function cycle() {
   const qty = BigInt(SIZE) * 1_000_000n;
   const px = (p) => (BigInt(Math.round(p * 1e6)) / ob.tickSize) * ob.tickSize;
   for (const [kind, p, label] of [[0, bid, "bid"], [1, ask, "ask"]]) {
+    // no quotes at the price boundaries: a 0.1c bid or a 99.9c ask is noise, not a market
+    if (label === "bid" && mid - SPREAD < 0.01) { log("mid too low for a bid, skipped"); continue; }
+    if (label === "ask" && mid + SPREAD > 0.99) { log("mid too high for an ask, skipped"); continue; }
     // post-only: a quote that would cross reverts; skip it rather than take liquidity
     if (label === "bid" && dAsk !== null && p >= dAsk) { log("bid would cross, skipped"); continue; }
     if (label === "ask" && dBid !== null && p <= dBid) { log("ask would cross, skipped"); continue; }
