@@ -55,8 +55,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .card .clock b { color: var(--ink); font-weight: 500; }
 .venues { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .venue { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-.venue.dream { border-top: 3px solid var(--dream); }
-.venue.poly { border-top: 3px solid var(--poly); }
+.venue.dream { }
+.venue.poly { }
 .venue .vn { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); display: flex; justify-content: space-between; }
 .venue .mid { font-family: var(--mono); font-size: 30px; font-weight: 500; margin: 6px 0 2px; letter-spacing: -0.02em; }
 .venue .mid small { font-size: 12px; color: var(--muted); margin-left: 6px; font-family: var(--sans); }
